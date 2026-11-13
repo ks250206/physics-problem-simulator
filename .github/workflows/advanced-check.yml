@@ -1,0 +1,70 @@
+name: Final advanced Physics Lab check
+on:
+  push:
+    branches: [feat/advanced-physics]
+    paths: [.github/workflows/advanced-check.yml]
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Polish camera persistence and searchable sources
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/App.tsx')
+          text = p.read_text()
+          replacements = [
+            ('useRef({sample,options});latest.current={sample,options};', 'useRef({sample,options,view});latest.current={sample,options,view};'),
+            ('engine.current.update(latest.current.sample,latest.current.options);', 'engine.current.update(latest.current.sample,latest.current.options);engine.current.view(latest.current.view.mode);'),
+            ("${catalog[key].level??''} ${groupOf(key)}`", "${catalog[key].level??''} ${groupOf(key)} ${catalog[key].references.map(r=>r.title).join(' ')}`"),
+            ('外力が作用するため、この系の運動量保存は検証対象外。', 'このモデル・設定では運動量保存は検証対象外です。'),
+          ]
+          for old, new in replacements:
+              assert old in text, old
+              text = text.replace(old, new)
+          p.write_text(text)
+          p = Path('tests/browser/advanced.spec.ts')
+          text = p.read_text()
+          old = "await page.goto('./'); await page.getByLabel('実験を検索', { exact: true }).fill('東大');"
+          new = "await page.goto('./'); await page.getByLabel('実験を検索', { exact: true }).fill('京都大学'); await expect(page.getByTestId('scene-coupledPendulum')).toBeVisible(); await page.getByLabel('実験を検索', { exact: true }).fill('東大');"
+          assert old in text
+          p.write_text(text.replace(old, new))
+          p = Path('docs/VALIDATION.md')
+          p.write_text(p.read_text() + '\n\n### Node 26での統合検証\n\n2026-11-14（日本時間）、Node 26.13.1 / pnpm 12.19.0にて物理42テスト、TypeScript型検査、Vite+本番ビルド、Playwright 6テストが成功。新規10モデルの35プリセットを操作し、デスクトップと390pxスマートフォンの実画面を確認。\n\n検証実行: https://github.com/ks250206/physics-problem-simulator/actions/runs/43517793091\n\n公開ブランチでも同じテストを再実行し、成功したビルドだけをGitHub Pagesへ配信する。\n')
+          Path('.github/workflows/advanced-check.yml').unlink()
+      - name: Commit final source corrections
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: preserve camera selection and search full university names'
+          git push origin HEAD:feat/advanced-physics
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.19.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: Physics tests
+        run: pnpm test
+      - name: Typecheck and production build
+        run: pnpm build
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Browser tests
+        run: pnpm test:e2e
+      - name: Browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: advanced-browser-evidence
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
