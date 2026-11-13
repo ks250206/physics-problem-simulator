@@ -1,0 +1,57 @@
+name: Check advanced Physics Lab
+on:
+  push:
+    branches: [feat/advanced-physics]
+    paths: [.github/workflows/advanced-check.yml]
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Correct coordinate and legend details
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/advanced-world.ts')
+          text = p.read_text()
+          old = 'upper.position.set(0, 6.5); lower.position.set(0, .5);'
+          assert old in text
+          p.write_text(text.replace(old, 'upper.position.set(0, 6.5, 0); lower.position.set(0, .5, 0);'))
+          p = Path('src/advanced-catalog.ts')
+          p.write_text(p.read_text().replace('慣性力（赤）', '慣性力（橙）').replace('赤系の二矢印', '赤・橙の二矢印'))
+          Path('.github/workflows/advanced-check.yml').unlink()
+      - name: Commit source corrections
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: complete electrode coordinates and correct force color legends'
+          git push origin HEAD:feat/advanced-physics
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.19.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: Physics tests
+        run: pnpm test
+      - name: Typecheck and production build
+        run: pnpm build
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Browser tests
+        run: pnpm test:e2e
+      - name: Browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: advanced-browser-evidence
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
