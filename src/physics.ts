@@ -1,5 +1,6 @@
 /** SI units; deterministic physics, independent of rendering. */
-export type SceneId = 'track' | 'spring' | 'induction' | 'pulley';
+import { advancedDefaults, advancedSimulate, isAdvanced, type AdvancedId } from './advanced.ts';
+export type SceneId = 'track' | 'spring' | 'induction' | 'pulley' | AdvancedId;
 export type Params = Record<string, number | string>;
 export interface Sample {
   t: number; q: number[]; v: number[]; K: number; U: number; Q: number; W: number;
@@ -8,10 +9,12 @@ export interface Sample {
 export interface Timeline {
   samples: Sample[]; duration: number; E0: number; p0: number;
   momentumConserved: boolean; endReason: string;
+  energyReference?: number; energyDisplayScale?: number; energyUnit?: string;
 }
 export const FPS = 60;
 export const TRACK_HALF_WIDTH = 3;
 export const defaults: Record<SceneId, Params> = {
+  ...advancedDefaults,
   track: { m: 1, M: 4, h: 2.4, q0: -2.2, v0: 0, drop: 0, g: 9.8, shape: 'bowl', fixed: 0 },
   spring: { m1: 1, m2: 2, k: 8, A: 0.8, V: 0.35, L: 3 },
   induction: { m: 1, B: 1, L: 1.8, R: 2, v0: 0.6, F: 0.7, mode: 'speed' },
@@ -19,7 +22,7 @@ export const defaults: Record<SceneId, Params> = {
 };
 const n = (p: Params, key: string) => Number(p[key]);
 export const balance = (s: Sample) => s.K + s.U + s.Q - s.W;
-export const relativeError = (s: Sample, E0: number) => Math.abs(balance(s) - E0) / Math.max(1, Math.abs(E0));
+export const relativeError = (s: Sample, E0: number, reference?: number) => Math.abs(balance(s) - E0) / (reference ?? Math.max(1, Math.abs(E0)));
 export function profile(q: number, p: Params): { y: number; d: number; dd: number } {
   const r = q / TRACK_HALF_WIDTH, h = n(p, 'h');
   if (p.shape === 'flat') return { y: 0.65 + h * r ** 4, d: 4 * h * r ** 3 / 3, dd: 12 * h * r ** 2 / 9 };
@@ -140,9 +143,11 @@ export function pulleySample(p: Params, t: number): Sample {
     phase: '理想糸の長さ一定・質量のない滑車' };
 }
 export function simulate(id: SceneId, params: Params, duration = 12): Timeline {
+  if (!Number.isFinite(duration) || duration < 0 || duration > 120) throw new Error('Duration must be between 0 and 120 seconds');
   const p = { ...defaults[id], ...params };
   for (const [key, value] of Object.entries(p)) if (typeof value === 'number' && !Number.isFinite(value)) throw new Error(`Invalid parameter: ${key}`);
   for (const key of ['m', 'M', 'm1', 'm2', 'm3', 'R', 'k', 'L', 'g', 'h']) if (key in p && n(p, key) <= 0) throw new Error(`${key} must be positive`);
+  if (isAdvanced(id)) return advancedSimulate(id, p, duration);
   if (id === 'track') return trackTimeline(p, duration);
   const end = id === 'pulley' ? Math.min(duration, pulleySystem(p).limit) : duration;
   const sample = id === 'spring' ? springSample : id === 'induction' ? inductionSample : pulleySample;
