@@ -1,0 +1,2 @@
+import { defineConfig } from '@playwright/test';
+export default defineConfig({testDir:'./tests/browser',fullyParallel:false,workers:1,timeout:30000,retries:1,reporter:[['list'],['html',{open:'never'}]],use:{baseURL:'http://127.0.0.1:4173/physics-problem-simulator/',viewport:{width:1440,height:1100},launchOptions:{args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']},trace:'retain-on-failure'},webServer:{command:'pnpm exec vp preview --host 127.0.0.1 --port 4173',url:'http://127.0.0.1:4173/physics-problem-simulator/',reuseExistingServer:!process.env.CI}});
