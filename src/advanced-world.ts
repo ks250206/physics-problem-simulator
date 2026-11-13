@@ -122,7 +122,7 @@ export function buildAdvancedWorld(parent: T.Group, id: AdvancedId, p: Params) {
   } else if (id === 'millikan') {
     const c = millikanConstants(p), scale = 5 / c.d, drop = ball(amber, .14); height = 7.4; targetY = 3.5; width = 8;
     for (const y of [1, 6]) box(5, .14, 2, 0x7b8fa9).position.set(0, y, 0);
-    const upper = text(c.voltage > 0 ? '− 電極' : c.voltage < 0 ? '＋ 電極' : '電極', '#c5b7ff'), lower = text(c.voltage > 0 ? '＋ 電極' : c.voltage < 0 ? '− 電極' : '電極', '#c5b7ff'); upper.position.set(0, 6.5); lower.position.set(0, .5);
+    const upper = text(c.voltage > 0 ? '− 電極' : c.voltage < 0 ? '＋ 電極' : '電極', '#c5b7ff'), lower = text(c.voltage > 0 ? '＋ 電極' : c.voltage < 0 ? '− 電極' : '電極', '#c5b7ff'); upper.position.set(0, 6.5, 0); lower.position.set(0, .5, 0);
     const dimension = text(`間隔 ${p.gap} mm`); dimension.position.set(-2.1, 3.5, .6); const field = arrow(purple); field(v(1.8, c.voltage >= 0 ? 2.3 : 4.7), v(0, Math.sign(c.voltage) * 8), c.voltage !== 0);
     const lab = text(`q = ${p.charge} e`); const ruler = line(0x5b728e); ruler([v(-2, 1), v(-2, 6)]);
     apply = (s, o) => { drop.position.set(0, 1 + s.q[0] * scale, 0); lab.position.copy(drop.position).add(v(1.15, .1)); vel[0](drop.position, v(0, s.v[0] * 1e4), o.vectors);
