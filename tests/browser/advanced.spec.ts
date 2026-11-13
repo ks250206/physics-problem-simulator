@@ -14,7 +14,7 @@ test('all ten advanced labs and their presets render and advance without errors'
   expect(errors).toEqual([]);
 });
 test('catalog filters, source distinctions, actual reference frame and tiny-energy display', async ({ page }) => {
-  await page.goto('./'); await page.getByLabel('実験を検索', { exact: true }).fill('東大');
+  await page.goto('./'); await page.getByLabel('実験を検索', { exact: true }).fill('京都大学'); await expect(page.getByTestId('scene-coupledPendulum')).toBeVisible(); await page.getByLabel('実験を検索', { exact: true }).fill('東大');
   await expect(page.locator('.scenario')).toHaveCount(1); await page.getByTestId('scene-conveyor').click();
   await page.getByRole('tab', { name: '参考にした入試問題' }).click(); await expect(page.getByRole('link', { name: /東京大学.*2024/ })).toBeVisible();
   await page.getByLabel('実験を検索', { exact: true }).fill(''); await page.getByLabel('実験の分野').selectOption('台車・相対運動'); await page.getByTestId('scene-relative').click();
