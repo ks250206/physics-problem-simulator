@@ -1,3 +1,5 @@
+import { isExtended } from './extended';
+import { buildExtendedWorld } from './extended-world';
 import { isAdvanced } from './advanced';
 import { buildAdvancedWorld } from './advanced-world';
 import * as T from 'three';
@@ -25,7 +27,7 @@ export function createWorld(host:HTMLDivElement,id:SceneId,p:Params){
  function arrow(color:number){const a=new T.ArrowHelper(v3(1,0,0),v3(),1,color,.18,.1);a.visible=false;objects.add(a);return (pos:T.Vector3,vec:T.Vector3,show:boolean)=>{a.visible=show&&vec.length()>1e-8;if(a.visible){const len=Math.min(2.5,.35+vec.length()*.27);a.position.copy(pos);a.setDirection(vec.normalize());a.setLength(len,Math.min(.22,len*.25),.12);}};}
  const arc=(x:number,y:number,r:number,from:number,to:number,z=.16)=>Array.from({length:25},(_,i)=>{const a=from+(to-from)*i/24;return v3(x+r*Math.cos(a),y+r*Math.sin(a),z);});
  let apply:(s:Sample,o:ViewOptions)=>void=()=>{};let previousFocus=0;
- const advanced=isAdvanced(id)?buildAdvancedWorld(objects,id,p):null;
+ const advanced=isExtended(id)?buildExtendedWorld(objects,id,p):isAdvanced(id)?buildAdvancedWorld(objects,id,p):null;
  const height=advanced?advanced.height:id==='pulley'?6.8:id==='track'?Math.max(4.8,profile(3,p).y+num(p,'drop')+1):id==='induction'?4.5:3.8;
  const baseTarget=advanced?v3(0,advanced.targetY,0):id==='pulley'?v3(0,3,0):id==='induction'?v3(3,.7,0):v3(0,id==='track'?height*.38:.7,0);
  let viewMode:'3d'|'front'='3d';
