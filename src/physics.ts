@@ -1,12 +1,14 @@
+import { extendedDefaults, extendedSimulate, isExtended, type ExtendedId } from './extended.ts';
 /** SI units; deterministic physics, independent of rendering. */
 import { advancedDefaults, advancedSimulate, isAdvanced, type AdvancedId } from './advanced.ts';
-export type SceneId = 'track' | 'spring' | 'induction' | 'pulley' | AdvancedId;
+export type SceneId = 'track' | 'spring' | 'induction' | 'pulley' | AdvancedId | ExtendedId;
 export type Params = Record<string, number | string>;
 export interface Sample {
   t: number; q: number[]; v: number[]; K: number; U: number; Q: number; W: number;
   p: number; constraint: number; extra: Record<string, number>; phase: string;
 }
 export interface Timeline {
+  energyLabels?: string[]; energyDisabled?: boolean; diagnosticNote?: string; timeLabel?: string;
   samples: Sample[]; duration: number; E0: number; p0: number;
   momentumConserved: boolean; endReason: string;
   energyReference?: number; energyDisplayScale?: number; energyUnit?: string;
@@ -15,6 +17,7 @@ export const FPS = 60;
 export const TRACK_HALF_WIDTH = 3;
 export const defaults: Record<SceneId, Params> = {
   ...advancedDefaults,
+  ...extendedDefaults,
   track: { m: 1, M: 4, h: 2.4, q0: -2.2, v0: 0, drop: 0, g: 9.8, shape: 'bowl', fixed: 0 },
   spring: { m1: 1, m2: 2, k: 8, A: 0.8, V: 0.35, L: 3 },
   induction: { m: 1, B: 1, L: 1.8, R: 2, v0: 0.6, F: 0.7, mode: 'speed' },
@@ -146,6 +149,7 @@ export function simulate(id: SceneId, params: Params, duration = 12): Timeline {
   if (!Number.isFinite(duration) || duration < 0 || duration > 120) throw new Error('Duration must be between 0 and 120 seconds');
   const p = { ...defaults[id], ...params };
   for (const [key, value] of Object.entries(p)) if (typeof value === 'number' && !Number.isFinite(value)) throw new Error(`Invalid parameter: ${key}`);
+  if (isExtended(id)) return extendedSimulate(id, p, duration);
   for (const key of ['m', 'M', 'm1', 'm2', 'm3', 'R', 'k', 'L', 'g', 'h']) if (key in p && n(p, key) <= 0) throw new Error(`${key} must be positive`);
   if (isAdvanced(id)) return advancedSimulate(id, p, duration);
   if (id === 'track') return trackTimeline(p, duration);
