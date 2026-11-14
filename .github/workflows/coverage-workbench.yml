@@ -1,0 +1,32 @@
+name: Physics coverage workbench
+on:
+  push:
+    branches: [feat/comprehensive-physics]
+    paths: [.github/workflows/coverage-workbench.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '12.19.0'
+      - run: pnpm install --frozen-lockfile
+      - name: Export source and local verification tools
+        run: |
+          git archive --format=tar HEAD > /tmp/source.tar
+          tar czf /tmp/tools.tar.gz node_modules
+          cp "$(which node)" /tmp/node26
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-workbench
+          path: |
+            /tmp/source.tar
+            /tmp/tools.tar.gz
+            /tmp/node26
+          retention-days: 1
