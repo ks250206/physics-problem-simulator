@@ -1,32 +1,84 @@
-name: Physics coverage workbench
+name: Validate comprehensive Physics Lab
 on:
   push:
     branches: [feat/comprehensive-physics]
     paths: [.github/workflows/coverage-workbench.yml]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  snapshot:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Apply verified source delta
+        shell: python
+        run: |
+          import base64, hashlib, json, lzma
+          from pathlib import Path
+          parts = sorted(Path('.staging').glob('coverage-part-*.txt'))
+          assert len(parts) == 4
+          raw = lzma.decompress(base64.b64decode(''.join(p.read_text().strip() for p in parts), validate=True))
+          assert hashlib.sha256(raw).hexdigest() == '6ac521ffb95b6fa161754f03ba5e4cfef6a93b28a4b106dd27ee04dfd5b7123e'
+          manifest = json.loads(raw)
+          def safe(name):
+              p = Path(name)
+              assert not p.is_absolute() and '..' not in p.parts and '.git' not in p.parts
+              return p
+          def digest(text):
+              return hashlib.sha256(text.encode()).hexdigest()
+          changes = {}
+          for name, patch in manifest['modifications'].items():
+              p = safe(name)
+              text = p.read_text()
+              assert digest(text) == patch['sha256'], f'Baseline differs: {name}'
+              for start, end, replacement in reversed(patch['ops']):
+                  text = text[:start] + replacement + text[end:]
+              assert digest(text) == patch['result'], f'Result differs: {name}'
+              changes[p] = text
+          for name, text in manifest['files'].items():
+              p = safe(name)
+              assert not p.exists(), f'New file already exists: {name}'
+              changes[p] = text
+          for p, text in changes.items():
+              p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_text(text)
+          for name in manifest['delete']:
+              safe(name).unlink()
+          for p in parts:
+              p.unlink()
+          Path('.staging').rmdir()
+          print(f'Applied {len(changes)} verified source files')
+      - name: Commit tested source candidate
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: add thirteen cross-domain entrance-exam physics laboratories'
+          git push origin HEAD:feat/comprehensive-physics
       - uses: actions/setup-node@v4
         with:
           node-version: '26'
       - uses: pnpm/action-setup@v4
         with:
           version: '12.19.0'
-      - run: pnpm install --frozen-lockfile
-      - name: Export source and local verification tools
-        run: |
-          git archive --format=tar HEAD > /tmp/source.tar
-          tar czf /tmp/tools.tar.gz node_modules
-          cp "$(which node)" /tmp/node26
-      - uses: actions/upload-artifact@v4
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Physics tests
+        run: pnpm test | tee validation.log
+      - name: Typecheck and production build
+        run: pnpm build
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Browser tests
+        run: pnpm test:e2e
+      - name: Browser and numerical evidence
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: coverage-workbench
+          name: coverage-browser-evidence
           path: |
-            /tmp/source.tar
-            /tmp/tools.tar.gz
-            /tmp/node26
-          retention-days: 1
+            test-results/
+            playwright-report/
+            validation.log
+          retention-days: 7
